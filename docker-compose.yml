@@ -1,0 +1,30 @@
+services:
+  mysql:
+    container_name: mydb
+    image: mysql:latest
+    volumes:
+      - ./backend/data:/data
+    ports:
+      - "3306:3306"
+
+  backend:
+    container_name: backend
+    build: ./backend
+    env_file:
+      - ./backend/.test-env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mysql
+
+  frontend:
+    container_name: frontend
+    build: ./frontend
+    env_file:
+      - ./backend/.test-env
+    ports:
+      - "5173:5173"
+
+volumes:
+  data:
+
