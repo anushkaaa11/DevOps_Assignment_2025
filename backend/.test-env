@@ -1,4 +1,4 @@
 host=mysql-container
 user=root
-MYSQL_ROOT_PASSWORD=mysql123
-MYSQL_DATABASE=school
+password=mysql123
+database=school
