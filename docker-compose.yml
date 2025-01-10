@@ -1,12 +1,9 @@
 services:
   mydb:
     build:
-      context: ../database
+      context: ./database
       dockerfile: Dockerfile
     container_name: mydb
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: mysql123
     volumes:
       - db_data:/var/lib/mysql
     ports:
