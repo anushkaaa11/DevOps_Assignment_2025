@@ -1,7 +1,7 @@
 services:
   mysql:
     container_name: mydb
-    image: mysql:latest
+    image: mysql:8.0
     volumes:
       - ./backend/data:/data
     ports:
