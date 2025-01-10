@@ -1,7 +1,9 @@
 services:
-  mysql:
+  mydb:
     container_name: mydb
     image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql123
     volumes:
       - ./backend/data:/data
     ports:
