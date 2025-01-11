@@ -1,3 +1,7 @@
+
+
+version: '3.8'
+
 services:
   mydb:
     build:
@@ -8,25 +12,27 @@ services:
       - db_data:/var/lib/mysql
     ports:
       - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql123
+      MYSQL_DATABASE: school
 
   backend:
     container_name: backend
     build: ./backend
-    environment:
-      - ./backend/.env
     ports:
-      - "5000:5000"
+      - "3500:3500"
     depends_on:
       - mydb
+    env_file:
+      - ./backend/.env
 
   frontend:
     container_name: frontend
     build: ./frontend
-    environment:
-      - ./backend/.env
     ports:
       - "5173:5173"
+    env_file:
+      - ./frontend/.env
 
 volumes:
   db_data:
-
