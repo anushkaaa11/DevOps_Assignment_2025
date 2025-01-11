@@ -1,7 +1,9 @@
 const express = require('express');
-const mysql = require('mysql2/promise'); // Use mysql2/promise for async/await support
+const mysql = require('mysql2/promise');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { body, validationResult } = require('express-validator');
+
 dotenv.config();
 
 const { createPool } = require('mysql2/promise');
@@ -11,11 +13,11 @@ app.use(express.json());
 app.use(cors());
 
 const db = createPool({
-    host: process.env.host,
-    user: process.env.user,
-    password: process.env.password,
-    database: process.env.database,
-    connectionLimit: 10, // Adjust based on your requirements
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    connectionLimit: 10,
     ssl: {
         rejectUnauthorized: false
     }
@@ -23,91 +25,93 @@ const db = createPool({
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    // Handle the error appropriately, e.g., log it or send an alert
 });
 
-// Centralized database connection handling
 process.on('SIGINT', async () => {
     await db.end();
     process.exit();
 });
 
-const getLastStudentID = async () => {
-    const [result] = await db.query('SELECT MAX(id) AS lastID FROM student');
-    const lastID = result[0].lastID || 0;
-    return lastID;
+const getLastID = async (table) => {
+    const [result] = await db.query(`SELECT MAX(id) AS lastID FROM ??`, [table]);
+    return result[0].lastID || 0;
 };
-
-const getLastteacherID = async () => {
-    const [result] = await db.query('SELECT MAX(id) AS lastID FROM teacher');
-    const lastID = result[0].lastID || 0;
-    return lastID;
-};
-
-// app.get('/', (req, res) => {
-//     return res.json("From Backend!!!");
-// });
 
 app.get('/', async (req, res) => {
-  try {
-      // Fetch data from the student table
-      const [data] = await db.query("SELECT * FROM student");
-      return res.json({ message: "From Backend!!!", studentData: data });
-  } catch (error) {
-      console.error('Error fetching student data:', error);
-      return res.status(500).json({ error: 'Error fetching student data' });
-  }
-});
-
-app.get('/student', async (req, res) => {
-    const [data] = await db.query("SELECT * FROM student");
-    return res.json(data);
-});
-
-app.get('/teacher', async (req, res) => {
-    const [data] = await db.query("SELECT * FROM teacher");
-    return res.json(data);
-});
-
-app.post('/addstudent', async (req, res) => {
     try {
-        const lastStudentID = await getLastStudentID();
-        const nextStudentID = lastStudentID + 1;
-
-        const studentData = {
-            id: nextStudentID,
-            name: req.body.name,
-            roll_number: req.body.rollNo,
-            class: req.body.class,
-        };
-
-        const sql = `INSERT INTO student (id, name, roll_number, class) VALUES (?, ?, ?, ?)`;
-        await db.query(sql, [studentData.id, studentData.name, studentData.roll_number, studentData.class]);
-        return res.json({ message: 'Data inserted successfully' });
+        const [data] = await db.query("SELECT * FROM student");
+        return res.json({ message: "From Backend!!!", studentData: data });
     } catch (error) {
-        console.error('Error:', error);
-        return res.status(500).json({ error: 'Error inserting data' });
+        console.error('Error fetching student data:', error);
+        return res.status(500).json({ error: 'Error fetching student data' });
     }
 });
 
-app.post('/addteacher', async (req, res) => {
+app.get('/student', async (req, res) => {
     try {
-        const lastteacherID = await getLastteacherID();
-        const nextteacherID = lastteacherID + 1;
+        const [data] = await db.query("SELECT * FROM student");
+        return res.json(data);
+    } catch (error) {
+        console.error('Error fetching students:', error);
+        return res.status(500).json({ error: 'Error fetching students' });
+    }
+});
 
-        const TeacherData = {
-            id: nextteacherID,
-            name: req.body.name,
-            subject: req.body.subject,
-            class: req.body.class,
-        };
+app.get('/teacher', async (req, res) => {
+    try {
+        const [data] = await db.query("SELECT * FROM teacher");
+        return res.json(data);
+    } catch (error) {
+        console.error('Error fetching teachers:', error);
+        return res.status(500).json({ error: 'Error fetching teachers' });
+    }
+});
 
-        const sql = `INSERT INTO teacher (id, name, subject, class) VALUES (?, ?, ?, ?)`;
-        await db.query(sql, [TeacherData.id, TeacherData.name, TeacherData.subject, TeacherData.class]);
+app.post('/addstudent', [
+    body('name').isString().notEmpty(),
+    body('rollNo').isNumeric(),
+    body('class').isString().notEmpty()
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const lastStudentID = await getLastID('student');
+        const nextStudentID = lastStudentID + 1;
+
+        const { name, rollNo, class: studentClass } = req.body;
+        const sql = `INSERT INTO student (id, name, roll_number, class) VALUES (?, ?, ?, ?)`;
+        await db.query(sql, [nextStudentID, name, rollNo, studentClass]);
         return res.json({ message: 'Data inserted successfully' });
     } catch (error) {
-        console.error('Error:', error);
-        return res.status(500).json({ error: 'Error inserting data' });
+        console.error('Error inserting student data:', error);
+        return res.status(500).json({ error: 'Error inserting student data' });
+    }
+});
+
+app.post('/addteacher', [
+    body('name').isString().notEmpty(),
+    body('subject').isString().notEmpty(),
+    body('class').isString().notEmpty()
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const lastTeacherID = await getLastID('teacher');
+        const nextTeacherID = lastTeacherID + 1;
+
+        const { name, subject, class: teacherClass } = req.body;
+        const sql = `INSERT INTO teacher (id, name, subject, class) VALUES (?, ?, ?, ?)`;
+        await db.query(sql, [nextTeacherID, name, subject, teacherClass]);
+        return res.json({ message: 'Data inserted successfully' });
+    } catch (error) {
+        console.error('Error inserting teacher data:', error);
+        return res.status(500).json({ error: 'Error inserting teacher data' });
     }
 });
 
@@ -118,7 +122,6 @@ app.delete('/student/:id', async (req, res) => {
 
     try {
         await db.query(sqlDelete, [studentId]);
-
         const [rows] = await db.query(sqlSelect);
 
         const updatePromises = rows.map(async (row, index) => {
@@ -129,7 +132,7 @@ app.delete('/student/:id', async (req, res) => {
         await Promise.all(updatePromises);
         return res.json({ message: 'Student deleted successfully' });
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error deleting student:', error);
         return res.status(500).json({ error: 'Error deleting student' });
     }
 });
@@ -141,7 +144,6 @@ app.delete('/teacher/:id', async (req, res) => {
 
     try {
         await db.query(sqlDelete, [teacherID]);
-
         const [rows] = await db.query(sqlSelect);
 
         const updatePromises = rows.map(async (row, index) => {
@@ -152,11 +154,11 @@ app.delete('/teacher/:id', async (req, res) => {
         await Promise.all(updatePromises);
         return res.json({ message: 'Teacher deleted successfully' });
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error deleting teacher:', error);
         return res.status(500).json({ error: 'Error deleting teacher' });
     }
 });
 
 app.listen(3500, () => {
-    console.log("listening on Port 3500");
+    console.log("Server listening on Port 3500");
 });
