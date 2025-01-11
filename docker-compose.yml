@@ -1,35 +1,39 @@
 version: '3.8'
 
 services:
-  mydb:
-    build:
-      context: ./database
-      dockerfile: Dockerfile
-    container_name: mydb
-    environment:
-      - MYSQL_ROOT_PASSWORD=mysql123
-    volumes:
-      - db_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-
   backend:
+    build:
+      context: ./backend
     container_name: backend
-    build: ./backend
     environment:
-      - ./backend/.env
+      - DB_HOST=mydb
+      - DB_USER=root
+      - DB_PASSWORD=mysql123
+      - DB_NAME=school
     ports:
       - "3500:3500"
     depends_on:
       - mydb
 
   frontend:
+    build:
+      context: ./frontend
     container_name: frontend
-    build: ./frontend
     ports:
-      - "5173:5173"
+      - "80:80"
     depends_on:
       - backend
+
+  mydb:
+    image: mysql:latest
+    container_name: mydb
+    environment:
+      - MYSQL_ROOT_PASSWORD=mysql123  # Ensure the root password is set here
+      - MYSQL_DATABASE=school  # Make sure the database is set
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
 
 volumes:
   db_data:
